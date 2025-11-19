@@ -1,5 +1,16 @@
+# ignore all 
 *
 
+# access git to folder
+!*/
+
+# chore
 !.gitignore
 !.gitattributes
 !.editorconfig
+
+# docs
+!kafka-health-check-guide.md
+
+# docker
+!docker-compose.yml

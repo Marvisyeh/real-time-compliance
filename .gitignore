@@ -10,6 +10,7 @@
 !.editorconfig
 
 # docs
+!README.md
 !kafka-health-check-guide.md
 
 # docker

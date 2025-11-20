@@ -21,3 +21,26 @@ services:
       - KAFKA_TRANSACTION_STATE_LOG_MIN_ISR=${KAFKA_TRANSACTION_STATE_LOG_MIN_ISR}
       - KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS=${KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS}
       - KAFKA_NUM_PARTITIONS=${KAFKA_NUM_PARTITIONS}
+
+  producer:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: producer
+    env_file:
+      - .env
+    volumes:
+      - ../../src:/app
+    stdin_open: true
+    tty: true
+
+  consumer:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: consumer
+    env_file:
+      - .env
+    volumes:
+      - ../../src:/app
+    

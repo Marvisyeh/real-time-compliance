@@ -22,6 +22,27 @@ services:
       - KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS=${KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS}
       - KAFKA_NUM_PARTITIONS=${KAFKA_NUM_PARTITIONS}
 
+  db:
+    image: postgres:17.7
+    container_name: db
+    restart: always
+    user: postgres
+    volumes:
+      - ../../db-data:/var/lib/postgresql/data
+    env_file:
+      - .env
+    environment:
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+    ports:
+      - 5432:5432
+    healthcheck:
+      test: [ "CMD", "pg_isready" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   producer:
     build:
       context: .
@@ -43,4 +64,5 @@ services:
       - .env
     volumes:
       - ../../src:/app
+    command: ["executable", "arg"]
     

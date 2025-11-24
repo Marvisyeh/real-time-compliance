@@ -1,6 +1,6 @@
-from config.settings import KafkaConfig
-from base_consumer import BaseConsumer
-from utils.s3_handler import S3Handler
+from consumers.config.settings import KafkaConfig
+from consumers.base_consumer import BaseConsumer
+from consumers.utils.s3_handler import S3Handler
 
 class BackupS3Consumer(BaseConsumer):    
   def __init__(self, topics, group_id):
@@ -14,7 +14,7 @@ class BackupS3Consumer(BaseConsumer):
   def process_message(self, message):
     try:
       key = self.s3_handler.upload_data(message)
-      self.logger.info(f"Data Saved To S3: {key}")
+      print(f"Data Saved To S3: {key}")
     except Exception as e:
-      self.logger.error(f"S3 Saved Error: {e}")
+      print(f"S3 Saved Error: {e}")
       raise

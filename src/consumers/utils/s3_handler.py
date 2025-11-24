@@ -1,18 +1,29 @@
 import json
-from datetime import datetime
+from datetime import datetime,timezone
 
-import boto3
-
-from config.settings import AwsConfig
+from consumers.config.settings import AwsConfig
+from consumers.utils.aws_base import get_session
 
 class S3Handler:
   def __init__(self):
-    self.s3_client = boto3.client('s3', region_name=AwsConfig.AWS_REGION)
+    self.s3_client = None
     self.bucket = AwsConfig.S3_BUCKET
 
+    self._init_session()
+  
+  def _init_session(self):
+    if not self.s3_client:
+      session = get_session()
+      self.s3_client = session.client('s3', region_name=AwsConfig.AWS_REGION)
+  
+  def refresh_session(self):
+    session = get_session()
+    self.s3_client = session.client('s3', region_name=AwsConfig.AWS_REGION)
+
+
   def upload_data(self, data, partition=None):
-    timestamp = datetime.now(datetime.timezone.utc)
-    date_path = timestamp.strftime()
+    timestamp = datetime.now(timezone.utc)
+    date_path = timestamp.strftime('%Y%m%d')
        
     # partition category
     if partition is not None:

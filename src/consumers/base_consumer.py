@@ -15,14 +15,14 @@ class BaseConsumer(ABC):
   def create_consumer(self):
     try:
       self.consumer = KafkaConsumer(
-          *self.topics,
-          bootstrap_servers=self.bootstrap_servers,
-          group_id=self.group_id,
-          auto_offset_reset='earliest',
-          enable_auto_commit=False,
-          value_deserializer=lambda x: json.loads(x.decode('utf-8')),
-          # consumer_timeout_ms=1000,
-          max_poll_records=100
+        *self.topics,
+        bootstrap_servers=self.bootstrap_servers,
+        group_id=self.group_id,
+        auto_offset_reset='earliest',
+        enable_auto_commit=False,
+        value_deserializer=lambda x: json.loads(x.decode('utf-8')),
+        # consumer_timeout_ms=1000,
+        max_poll_records=100
       )
       print(f"Consumer {self.group_id} Connected")
       return self.consumer
@@ -43,7 +43,8 @@ class BaseConsumer(ABC):
       for message in self.consumer:
         try:
           print(f"Recived Message Offset: {message.offset}")
-          print(message.value)
+          self.process_message(message.value)
+
           self.consumer.commit()
         
         except Exception as e:

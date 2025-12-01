@@ -30,9 +30,9 @@ class AnalysisConsumer(BaseConsumer):
       if analysis_result['is_alert']:
         self.alert_handler.send_alert(analysis_result)
         print(f"[ALERT] {analysis_result['alert_message']}")
-      
-      self.db_handler.insert_analysis_result(analysis_result)
-      print("[DB] Analysis written")
+
+        self.db_handler.insert_analysis_result(analysis_result)
+        print("[DB] Analysis written")
 
     except Exception as e:
       print(f"Analysis Error: {e}")

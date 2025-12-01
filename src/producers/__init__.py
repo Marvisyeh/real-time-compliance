@@ -61,7 +61,7 @@ class DataProducer:
         print(f"Error sending transaction: {e}")
         return None
   
-  def start_data_stream(self, duration_seconds=60, interval_seconds=1):
+  def start_data_stream(self, duration_seconds=120, interval_seconds=1):
       print(f"Starting data stream for {duration_seconds} seconds...")
       print(f"Sending data every {interval_seconds} second(s)\n")
       

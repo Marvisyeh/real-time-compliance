@@ -1,132 +1,104 @@
-# 📡 Real-Time Event Monitoring Platform
+# 📡 Real-Time Compliance / Anomaly Monitoring
 
-A real-time data pipeline that ingests system logs, metrics, and transaction events through Kafka, performs cleaning and anomaly detection, stores cleaned data into PostgreSQL, triggers Slack alerts on anomalies, and visualizes everything in a React dashboard.
-
-This project demonstrates an end-to-end **streaming data engineering architecture** with **real-time ETL**, **anomaly detection**, **cloud-like storage**, **API services**, and **interactive visualizations**.
+Current status: three Kafka producers (logs/metrics/transactions) are working, two consumers (S3 backup + rule-based anomaly detection) are running, Discord alerts fire, and anomaly events are written to PostgreSQL. FastAPI and the dashboard are not implemented yet. Docker Compose includes Kafka (KRaft), Postgres, and dev containers.
 
 ---
 
-## 🚀 Features
+## Status at a Glance
 
-- **Real-time streaming pipeline** with Kafka
-- **Producers** generate mock logs, metrics, and transaction events
-- **Consumer A** writes raw events to S3 (raw data lake)
-- **Consumer B** performs:
-
-  - JSON parsing & data cleaning
-  - Rule-based anomaly detection
-  - Writes cleaned data into PostgreSQL
-  - Sends Slack alerts for anomalies
-
-- **FastAPI** backend to expose metrics, logs, anomalies, and statistics
-<!-- - **React Dashboard** to visualize real-time trends and anomalies -->
+- ✅ Producers: randomized logs / metrics / transactions sent to Kafka
+- ✅ Consumers:
+  - `BackupS3Consumer`: save raw JSON to S3 (assume-role required)
+  - `AnalysisConsumer`: per-type rules, Discord alerts, insert into Postgres `anomaly_events`
+- ✅ Docker Compose: Kafka (KRaft), Postgres, producer/consumer dev containers
+- ⏳ Database: only anomaly insert logic; table creation/migrations are manual
+- 🚧 FastAPI, Dashboard: folders exist, no implementation
+- 🚧 Tests: basic function test stubs only
 
 ---
 
-## 🏗 Architecture Overview
+## Architecture (what runs today)
+
+1. Python producers emit three event types -> Kafka topics `logs` / `metrics` / `transactions`
+2. Consumer A: writes raw messages to S3 (`PREFIX/YYYYMMDD/<timestamp>.json`)
+3. Consumer B: rule evaluation by type
+   - Logs: ERROR spike in 3 minutes >= 20, message contains "failed", or per-user spike
+   - Metrics: sustained CPU >= 80%, latency > 1000ms, or both high
+   - Transactions: amount > 10000, or high-frequency per user within 5 minutes
+   - Alerts -> Discord webhook; anomalies -> Postgres `anomaly_events`
+
+---
+
+## Project Structure
 
 ```
-Producers (Python)
-     │
-     ▼
- Kafka Topics (logs / metrics / transactions)
-     │
-     ├── Consumer A → S3 Raw Storage
-     │
-     └── Consumer B → Cleaning → Anomaly Detection → PostgreSQL → Slack Alert
-                                               │
-                                               ▼
-                                          FastAPI API
-                                               │
-                                               ▼
-                                       React Dashboard(planing)
-```
-
----
-
-## 🔧 Tech Stack
-
-### **Backend / Data Pipeline**
-
-- Python
-- Kafka (Producers + Consumers)
-- S3 (raw data storage)
-- PostgreSQL (cleaned events + anomalies)
-- FastAPI
-- Slack Webhook for alerting
-
-<!-- ### **Frontend** (Coming Soon)
-
-- React + Charting Library
-
----
-
-## 📁 Project Structure (Coming Soon)
-
-```
-/src
-  /producers
-  /consumer_a_raw_sink
-  /consumer_b_etl_anomaly
-  /api
-  /dashboard
-/infra
-  /docker
-  /config
-/docs
-  architecture-diagram.png
-  anomaly-pipeline.png
-README.md
+src/
+  producers/        # event generators + Kafka producer
+  consumers/        # S3 backup, anomaly analysis, alerts, DB writes
+  dashboard/        # placeholder
+  api/              # placeholder
+infra/
+  docker/           # Dockerfile, docker-compose.yml, requirements
+docs/               # PRD, TODO, Kafka health check guide
+db-data/            # Postgres volume (mounted by docker compose)
 ```
 
 ---
 
-## 🔥 Example Event Format
+## Quickstart
 
-**Log Event**
+### 1) Prepare `.env` (Kafka KRaft + service settings)
+`infra/docker/docker-compose.yml` reads the following keys (fill them yourself):
+- Kafka (KRaft): `KAFKA_NODE_ID`, `KAFKA_PROCESS_ROLES`, `KAFKA_LISTENERS`, `KAFKA_ADVERTISED_LISTENERS`, `KAFKA_CONTROLLER_LISTENER_NAMES`, `KAFKA_LISTENER_SECURITY_PROTOCOL_MAP`, `KAFKA_CONTROLLER_QUORUM_VOTERS`, `KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR`, `KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR`, `KAFKA_TRANSACTION_STATE_LOG_MIN_ISR`, `KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS`, `KAFKA_NUM_PARTITIONS`
+- Pipeline: `KAFKA_SERVER_1`, `AWS_REGION`, `S3_BUCKET`, `PREFIX`, `ROLE_ARN`, `DISCORD_WEBHOOK_URL`, `POSTGRES_HOST`, `POSTGRES_PORT`, `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`
 
-```json
-{
-  "timestamp": "2025-01-01T10:20:30Z",
-  "service": "auth-service",
-  "level": "ERROR",
-  "message": "User login failed",
-  "user_id": 123
-}
+For local testing, point Kafka/DB to `localhost`; leave Discord/S3 empty to avoid real calls.
+
+### 2) Start Kafka and Postgres
+```bash
+docker compose -f infra/docker/docker-compose.yml up -d broker db
 ```
 
-**Metric Event**
+### 3) Start the Producer
+```bash
+python - <<'PY'
+from producers import DataProducer
+p = DataProducer(bootstrap_servers="localhost:9092")
+p.start_data_stream(duration_seconds=120, interval_seconds=1)
+PY
+```
 
-```json
-{
-  "timestamp": "2025-01-01T10:20:32Z",
-  "service": "inventory-api",
-  "cpu": 88.2,
-  "latency_ms": 420
-}
+### 4) Start the Consumers (runs S3 backup + anomaly analysis)
+```bash
+python src/consumers/main.py
 ```
 
 ---
 
-## ⚠️ Anomaly Detection Rules (Coming Soon)
+## Anomaly Events in PostgreSQL
 
-- **Logs**: > 20 ERROR logs within 1 minute
-- **Metrics**: CPU > 85% or Latency > 400ms
-- **Transactions**: Amount > 10,000
-
-Detected anomalies will be stored in PostgreSQL and notified via Slack.
+- Only `anomaly_events` insert is implemented; create the table first:
+  ```sql
+  CREATE TABLE IF NOT EXISTS anomaly_events (
+    timestamp TIMESTAMPTZ,
+    is_alert BOOLEAN,
+    alert_type TEXT,
+    alert_level TEXT,
+    alert_title TEXT,
+    alert_message TEXT,
+    user_id TEXT,
+    tags JSONB,
+    metrics JSONB
+  );
+  ```
+- DB connection uses `POSTGRES_*` env vars.
 
 ---
 
-## 🧪 How to Run (Coming Soon)
+## TODO / Roadmap
 
-Documentation for running Kafka, consumers, API, and dashboard will be added as implementation progresses.
-
----
-
-## 📌 Project Goals
-
-- Build a production-style real-time data platform
-- Demonstrate data pipeline & streaming engineering skills
-- Show an end-to-end system: ingestion → processing → storage → API → visualization
-- Serve as a portfolio project for Data / AI Engineering roles -->
+- FastAPI: anomalies/events query APIs
+- Dashboard: React + charts, hook to API/WS
+- Docker: consumer/producer entrypoints, healthchecks, auto topic creation
+- Testing: unit + integration and DB migrations
+- Advanced detection: ML / Isolation Forest

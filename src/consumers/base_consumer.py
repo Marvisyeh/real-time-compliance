@@ -42,16 +42,16 @@ class BaseConsumer(ABC):
     try:
       for message in self.consumer:
         try:
-          print(f"Recived Message Offset: {message.offset}")
+          print(f"Received Message Offset: {message.offset}")
           self.process_message(message.value)
 
           self.consumer.commit()
         
         except Exception as e:
-          print("Process message Error: {e}", exc_info=True)
+          print(f"Process message Error: {e}", exc_info=True)
           ## TODO | commit or retry logic
     except KeyboardInterrupt:
-      print("Recived ShutDown Signal, Stop Consumer.....")
+      print("Received Shutdown Signal, Stop Consumer.....")
     finally:
       self.close()
   

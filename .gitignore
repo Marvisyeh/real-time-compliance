@@ -1,5 +1,28 @@
+# ignore all 
 *
 
+# access git to folder
+!*/
+
+# chore
 !.gitignore
 !.gitattributes
 !.editorconfig
+
+# docs
+!README.md
+!kafka-health-check-guide.md
+
+# docker
+!docker-compose.yml
+
+# python
+!*.py
+
+# env
+!env.example
+!alembic.ini
+!script.py.mako
+
+# temp to ignore test
+tests/

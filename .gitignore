@@ -19,5 +19,10 @@
 # python
 !*.py
 
+# env
+!env.example
+!alembic.ini
+!script.py.mako
+
 # temp to ignore test
 tests/

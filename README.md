@@ -11,7 +11,7 @@ Current status: three Kafka producers (logs/metrics/transactions) are working, t
   - `BackupS3Consumer`: save raw JSON to S3 (assume-role required)
   - `AnalysisConsumer`: per-type rules, Discord alerts, insert into Postgres `anomaly_events`
 - ✅ Docker Compose: Kafka (KRaft), Postgres, producer/consumer dev containers
-- ⏳ Database: only anomaly insert logic; table creation/migrations are manual
+- ✅ Database: Alembic migrations set up; initial migration creates `anomaly_events` table
 - 🚧 FastAPI, Dashboard: folders exist, no implementation
 - 🚧 Tests: basic function test stubs only
 
@@ -35,12 +35,11 @@ Current status: three Kafka producers (logs/metrics/transactions) are working, t
 src/
   producers/        # event generators + Kafka producer
   consumers/        # S3 backup, anomaly analysis, alerts, DB writes
+  migrations/       # Alembic database migrations
   dashboard/        # placeholder
   api/              # placeholder
 infra/
   docker/           # Dockerfile, docker-compose.yml, requirements
-docs/               # PRD, TODO, Kafka health check guide
-db-data/            # Postgres volume (mounted by docker compose)
 ```
 
 ---
@@ -48,18 +47,39 @@ db-data/            # Postgres volume (mounted by docker compose)
 ## Quickstart
 
 ### 1) Prepare `.env` (Kafka KRaft + service settings)
-`infra/docker/docker-compose.yml` reads the following keys (fill them yourself):
-- Kafka (KRaft): `KAFKA_NODE_ID`, `KAFKA_PROCESS_ROLES`, `KAFKA_LISTENERS`, `KAFKA_ADVERTISED_LISTENERS`, `KAFKA_CONTROLLER_LISTENER_NAMES`, `KAFKA_LISTENER_SECURITY_PROTOCOL_MAP`, `KAFKA_CONTROLLER_QUORUM_VOTERS`, `KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR`, `KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR`, `KAFKA_TRANSACTION_STATE_LOG_MIN_ISR`, `KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS`, `KAFKA_NUM_PARTITIONS`
-- Pipeline: `KAFKA_SERVER_1`, `AWS_REGION`, `S3_BUCKET`, `PREFIX`, `ROLE_ARN`, `DISCORD_WEBHOOK_URL`, `POSTGRES_HOST`, `POSTGRES_PORT`, `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`
+
+Copy the example environment file and fill in your values:
+
+```bash
+cp env.example infra/docker/.env
+```
+
+Edit `infra/docker/.env` with your configuration. Required keys:
+
+- **Kafka (KRaft)**: `KAFKA_NODE_ID`, `KAFKA_PROCESS_ROLES`, `KAFKA_LISTENERS`, `KAFKA_ADVERTISED_LISTENERS`, `KAFKA_CONTROLLER_LISTENER_NAMES`, `KAFKA_LISTENER_SECURITY_PROTOCOL_MAP`, `KAFKA_CONTROLLER_QUORUM_VOTERS`, `KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR`, `KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR`, `KAFKA_TRANSACTION_STATE_LOG_MIN_ISR`, `KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS`, `KAFKA_NUM_PARTITIONS`
+- **Pipeline**: `KAFKA_SERVER_1`, `AWS_REGION`, `S3_BUCKET`, `PREFIX`, `ROLE_ARN`, `DISCORD_WEBHOOK_URL`, `POSTGRES_HOST`, `POSTGRES_PORT`, `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`
 
 For local testing, point Kafka/DB to `localhost`; leave Discord/S3 empty to avoid real calls.
 
 ### 2) Start Kafka and Postgres
+
 ```bash
 docker compose -f infra/docker/docker-compose.yml up -d broker db
 ```
 
-### 3) Start the Producer
+Wait for services to be ready (especially Postgres healthcheck).
+
+### 3) Run Database Migrations
+
+```bash
+cd src
+alembic upgrade head
+```
+
+This creates the `anomaly_events` table in PostgreSQL.
+
+### 4) Start the Producer
+
 ```bash
 python - <<'PY'
 from producers import DataProducer
@@ -68,7 +88,8 @@ p.start_data_stream(duration_seconds=120, interval_seconds=1)
 PY
 ```
 
-### 4) Start the Consumers (runs S3 backup + anomaly analysis)
+### 5) Start the Consumers (runs S3 backup + anomaly analysis)
+
 ```bash
 python src/consumers/main.py
 ```
@@ -77,9 +98,10 @@ python src/consumers/main.py
 
 ## Anomaly Events in PostgreSQL
 
-- Only `anomaly_events` insert is implemented; create the table first:
+- The `anomaly_events` table is created automatically via Alembic migrations (see step 3 in Quickstart).
+- Table schema:
   ```sql
-  CREATE TABLE IF NOT EXISTS anomaly_events (
+  CREATE TABLE anomaly_events (
     timestamp TIMESTAMPTZ,
     is_alert BOOLEAN,
     alert_type TEXT,
@@ -92,6 +114,9 @@ python src/consumers/main.py
   );
   ```
 - DB connection uses `POSTGRES_*` env vars.
+- To create new migrations: `alembic revision --autogenerate -m "description"`
+- To apply migrations: `alembic upgrade head`
+- See `docs/MIGRATION_GUIDE.md` for detailed migration instructions.
 
 ---
 
@@ -100,5 +125,5 @@ python src/consumers/main.py
 - FastAPI: anomalies/events query APIs
 - Dashboard: React + charts, hook to API/WS
 - Docker: consumer/producer entrypoints, healthchecks, auto topic creation
-- Testing: unit + integration and DB migrations
+- Testing: unit + integration tests
 - Advanced detection: ML / Isolation Forest

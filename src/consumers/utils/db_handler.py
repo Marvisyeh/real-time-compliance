@@ -2,6 +2,7 @@ import json
 import urllib.parse
 import psycopg2
 from psycopg2.extras import execute_values
+import ulid
 from consumers.config.settings import DBConfig
 
 
@@ -27,12 +28,13 @@ class DBHandler:
         with self.conn.cursor() as cur:
             query = """
         INSERT INTO anomaly_events (
-          timestamp, is_alert, alert_type, alert_level, alert_title, 
+          id, timestamp, is_alert, alert_type, alert_level, alert_title, 
           alert_message, user_id, tags, metrics
         )
         VALUES %s
       """
             values = [(
+                ulid.new().str,  # Generate ULID for new event
                 data.get('timestamp'),
                 data.get('is_alert', False),
                 data.get('alert_type'),
@@ -50,6 +52,7 @@ class DBHandler:
         with self.conn.cursor() as cur:
             query = """
         CREATE TABLE IF NOT EXISTS anomaly_events (
+          id TEXT PRIMARY KEY,
           timestamp TIMESTAMPTZ,
           is_alert BOOLEAN,
           alert_type TEXT,

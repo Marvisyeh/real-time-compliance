@@ -7,6 +7,7 @@ metadata = MetaData()
 anomaly_events = Table(
     "anomaly_events",
     metadata,
+    Column("id", Text, primary_key=True),
     Column("timestamp", TIMESTAMP(timezone=True)),
     Column("is_alert", Boolean),
     Column("alert_type", Text),

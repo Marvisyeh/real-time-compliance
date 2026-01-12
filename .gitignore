@@ -19,6 +19,15 @@
 # python
 !*.py
 
+# frontend
+!*.ts
+!*.tsx
+!*.html
+!*.css
+!*.json
+!*.js
+frontend/dist
+
 # env
 !env.example
 !alembic.ini

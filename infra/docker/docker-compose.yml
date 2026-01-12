@@ -112,3 +112,30 @@ services:
       timeout: 10s
       retries: 3
       start_period: 10s
+
+  frontend:
+    build:
+      context: ../../frontend
+      dockerfile: Dockerfile
+    container_name: frontend
+    ports:
+      - "80:80"
+    depends_on:
+      - api
+    restart: unless-stopped
+
+  frontend-dev:
+    image: node:22.14.0-slim
+    container_name: frontend-dev
+    working_dir: /app/frontend
+    env_file:
+      - .env
+    volumes:
+      - ../../frontend:/app/frontend
+      - /app/frontend/node_modules
+    ports:
+      - 3000:3000
+    stdin_open: true
+    tty: true
+    depends_on:
+      - api

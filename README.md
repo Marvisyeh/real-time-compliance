@@ -1,6 +1,6 @@
 # 📡 Real-Time Compliance / Anomaly Monitoring
 
-Current status: three Kafka producers (logs/metrics/transactions) are working, two consumers (S3 backup + rule-based anomaly detection) are running, Discord alerts fire, and anomaly events are written to PostgreSQL. FastAPI REST API is implemented with dashboard and events endpoints. Docker Compose includes Kafka (KRaft), Postgres, API service, and dev containers.
+Current status: three Kafka producers (logs/metrics/transactions) are working, two consumers (S3 backup + rule-based anomaly detection) are running, Discord alerts fire, and anomaly events are written to PostgreSQL. FastAPI REST API is implemented with dashboard and events endpoints. React frontend dashboard with TypeScript and Tailwind CSS is available for real-time monitoring. Docker Compose includes Kafka (KRaft), Postgres, API service, frontend service, and dev containers.
 
 ---
 
@@ -15,6 +15,11 @@ Current status: three Kafka producers (logs/metrics/transactions) are working, t
 - ✅ FastAPI: REST API with dashboard and events modules
   - Dashboard endpoints: `/dashboard/overview`, `/dashboard/timeline`, `/dashboard/services`
   - Events endpoints: `/events`, `/events/{event_id}`, `/events/stats/summary`
+- ✅ Frontend: React dashboard with TypeScript and Tailwind CSS
+  - Dashboard page with real-time charts and statistics
+  - Events list page with filtering and pagination
+  - Event detail page
+  - Production build with nginx, development server available
 - 🚧 Tests: basic function test stubs only
 
 ---
@@ -31,6 +36,10 @@ Current status: three Kafka producers (logs/metrics/transactions) are working, t
 4. FastAPI: REST API for querying anomaly events and dashboard statistics
    - Events API: query, filter, and paginate anomaly events
    - Dashboard API: overview statistics, alert timeline, service summaries
+5. Frontend: React dashboard for visualization and monitoring
+   - Real-time dashboard with charts (Recharts)
+   - Event browsing and filtering
+   - Responsive UI with Tailwind CSS
 
 ---
 
@@ -47,6 +56,14 @@ src/
     modules/        # dashboard and events modules
       dashboard/    # dashboard endpoints, service, repository
       events/       # events endpoints, service, repository
+frontend/           # React frontend application
+  src/
+    api/            # API client
+    components/     # React components
+    pages/          # Page components (Dashboard, Events, EventDetail)
+    types/          # TypeScript type definitions
+  Dockerfile        # Production build with nginx
+  nginx.conf        # Nginx configuration
 infra/
   docker/           # Dockerfile, docker-compose.yml, requirements
 ```
@@ -71,13 +88,16 @@ Edit `infra/docker/.env` with your configuration. Required keys:
 
 For local testing, point Kafka/DB to `localhost`; leave Discord/S3 empty to avoid real calls. The API service will automatically connect to the `db` container when running in Docker Compose.
 
-### 2) Start Kafka, Postgres, and API
+### 2) Start Kafka, Postgres, API, and Frontend
 
 ```bash
-docker compose -f infra/docker/docker-compose.yml up -d broker db api
+docker compose -f infra/docker/docker-compose.yml up -d broker db api frontend
 ```
 
-Wait for services to be ready (especially Postgres healthcheck). The API will be available at `http://localhost:8000`.
+Wait for services to be ready (especially Postgres healthcheck).
+
+- API: `http://localhost:8000`
+- Frontend: `http://localhost:80` (production) or use `frontend-dev` service for development
 
 ### 3) Run Database Migrations
 
@@ -104,16 +124,21 @@ PY
 python src/consumers/main.py
 ```
 
-### 6) Access the API
+### 6) Access the Services
 
-The FastAPI service is available at:
+**API Service:**
 
 - API: `http://localhost:8000`
 - API Documentation: `http://localhost:8000/docs` (Swagger UI)
 - Alternative Docs: `http://localhost:8000/redoc` (ReDoc)
 - Health Check: `http://localhost:8000/health`
 
-**Available Endpoints:**
+**Frontend Dashboard:**
+
+- Production: `http://localhost:80` (nginx)
+- Development: Use `frontend-dev` service on port 3000
+
+**Available API Endpoints:**
 
 - `GET /events` - List anomaly events with filtering and pagination
 - `GET /events/{event_id}` - Get event by ID
@@ -121,6 +146,13 @@ The FastAPI service is available at:
 - `GET /dashboard/overview` - Get dashboard overview
 - `GET /dashboard/timeline` - Get alert timeline
 - `GET /dashboard/services` - Get service alert summary
+
+**Frontend Features:**
+
+- Real-time dashboard with statistics and charts
+- Event browsing with filtering (alert type, level, user ID)
+- Event detail view with full information
+- Auto-refresh every 30 seconds
 
 ---
 
@@ -151,7 +183,6 @@ The FastAPI service is available at:
 
 ## TODO / Roadmap
 
-- Dashboard: React + charts, hook to API/WS
 - Docker: consumer/producer entrypoints, healthchecks, auto topic creation
 - Testing: unit + integration tests
 - Advanced detection: ML / Isolation Forest
